@@ -10,7 +10,11 @@ export type ParamDef = {
   unit?: string;
 };
 
-export type FilterCategory = "Bordas" | "Suavização" | "Histograma / Contraste";
+export type FilterCategory =
+  | "Bordas"
+  | "Suavização"
+  | "Histograma / Contraste"
+  | "Limiarização / Binarização";
 
 export type FilterDef = {
   id: string;
@@ -109,17 +113,67 @@ export const FILTERS: FilterDef[] = [
   },
   {
     id: "threshold",
-    label: "Limiarização Binária",
-    category: "Histograma / Contraste",
-    description: "Converte a imagem em preto e branco a partir de um limiar fixo.",
+    label: "Binária",
+    category: "Limiarização / Binarização",
+    description: "Pixels acima do limiar viram branco (255); os demais viram preto (0).",
+    params: [{ key: "thresh", label: "Limiar", min: 0, max: 255, step: 1, default: 127 }],
+  },
+  {
+    id: "threshold_binary_inv",
+    label: "Binária Invertida",
+    category: "Limiarização / Binarização",
+    description: "Pixels acima do limiar viram preto (0); os demais viram branco (255).",
+    params: [{ key: "thresh", label: "Limiar", min: 0, max: 255, step: 1, default: 127 }],
+  },
+  {
+    id: "threshold_trunc",
+    label: "Truncamento",
+    category: "Limiarização / Binarização",
+    description: "Pixels acima do limiar são achatados no valor do limiar; os demais permanecem inalterados.",
+    params: [{ key: "thresh", label: "Limiar", min: 0, max: 255, step: 1, default: 127 }],
+  },
+  {
+    id: "threshold_tozero",
+    label: "Para Zero",
+    category: "Limiarização / Binarização",
+    description: "Pixels abaixo do limiar viram preto (0); os demais mantêm seu valor original.",
+    params: [{ key: "thresh", label: "Limiar", min: 0, max: 255, step: 1, default: 127 }],
+  },
+  {
+    id: "threshold_tozero_inv",
+    label: "Para Zero Invertido",
+    category: "Limiarização / Binarização",
+    description: "Pixels acima do limiar viram preto (0); os demais mantêm seu valor original.",
     params: [{ key: "thresh", label: "Limiar", min: 0, max: 255, step: 1, default: 127 }],
   },
   {
     id: "otsu",
-    label: "Limiarização de Otsu",
-    category: "Histograma / Contraste",
-    description: "Encontra automaticamente o melhor limiar de binarização.",
+    label: "Otsu (automática)",
+    category: "Limiarização / Binarização",
+    description: "Encontra automaticamente o melhor limiar global de binarização a partir do histograma.",
     params: [],
+  },
+  {
+    id: "adaptive_mean",
+    label: "Adaptativa (Média)",
+    category: "Limiarização / Binarização",
+    description:
+      "Calcula um limiar local por vizinhança, usando a média dos pixels ao redor menos uma constante C. Boa para iluminação irregular.",
+    params: [
+      { key: "blockSize", label: "Tamanho do bloco", min: 3, max: 51, step: 2, default: 11 },
+      { key: "c", label: "Constante C", min: -30, max: 30, step: 1, default: 2 },
+    ],
+  },
+  {
+    id: "adaptive_gaussian",
+    label: "Adaptativa (Gaussiana)",
+    category: "Limiarização / Binarização",
+    description:
+      "Calcula um limiar local por vizinhança, usando uma média ponderada gaussiana menos uma constante C. Boa para iluminação irregular.",
+    params: [
+      { key: "blockSize", label: "Tamanho do bloco", min: 3, max: 51, step: 2, default: 11 },
+      { key: "c", label: "Constante C", min: -30, max: 30, step: 1, default: 2 },
+    ],
   },
 ];
 
@@ -131,6 +185,11 @@ export function getFilter(id: string): FilterDef {
 
 function oddAtLeast1(n: number): number {
   const v = Math.max(1, Math.round(n));
+  return v % 2 === 0 ? v + 1 : v;
+}
+
+function oddAtLeast3(n: number): number {
+  const v = Math.max(3, Math.round(n));
   return v % 2 === 0 ? v + 1 : v;
 }
 
@@ -260,9 +319,63 @@ export function applyFilter(
         result = dst;
         break;
       }
+      case "threshold_binary_inv": {
+        const dst = track(new cv.Mat());
+        cv.threshold(gray, dst, params.thresh, 255, cv.THRESH_BINARY_INV);
+        result = dst;
+        break;
+      }
+      case "threshold_trunc": {
+        const dst = track(new cv.Mat());
+        cv.threshold(gray, dst, params.thresh, 255, cv.THRESH_TRUNC);
+        result = dst;
+        break;
+      }
+      case "threshold_tozero": {
+        const dst = track(new cv.Mat());
+        cv.threshold(gray, dst, params.thresh, 255, cv.THRESH_TOZERO);
+        result = dst;
+        break;
+      }
+      case "threshold_tozero_inv": {
+        const dst = track(new cv.Mat());
+        cv.threshold(gray, dst, params.thresh, 255, cv.THRESH_TOZERO_INV);
+        result = dst;
+        break;
+      }
       case "otsu": {
         const dst = track(new cv.Mat());
         cv.threshold(gray, dst, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
+        result = dst;
+        break;
+      }
+      case "adaptive_mean": {
+        const blockSize = oddAtLeast3(params.blockSize);
+        const dst = track(new cv.Mat());
+        cv.adaptiveThreshold(
+          gray,
+          dst,
+          255,
+          cv.ADAPTIVE_THRESH_MEAN_C,
+          cv.THRESH_BINARY,
+          blockSize,
+          params.c
+        );
+        result = dst;
+        break;
+      }
+      case "adaptive_gaussian": {
+        const blockSize = oddAtLeast3(params.blockSize);
+        const dst = track(new cv.Mat());
+        cv.adaptiveThreshold(
+          gray,
+          dst,
+          255,
+          cv.ADAPTIVE_THRESH_GAUSSIAN_C,
+          cv.THRESH_BINARY,
+          blockSize,
+          params.c
+        );
         result = dst;
         break;
       }
