@@ -227,28 +227,6 @@ export default function CvPlayground() {
               ))}
             </div>
           </section>
-
-          <section className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-1 text-sm font-semibold text-neutral-900">3. Parâmetros</h2>
-            <p className="mb-4 text-xs text-neutral-400">{activeFilter.description}</p>
-            {activeFilter.params.length === 0 ? (
-              <p className="text-sm text-neutral-400">Este filtro não possui parâmetros ajustáveis.</p>
-            ) : (
-              <div className="flex flex-col gap-4">
-                {activeFilter.params.map((p) => (
-                  <Slider
-                    key={p.key}
-                    label={p.label}
-                    value={params[p.key] ?? p.default}
-                    min={p.min}
-                    max={p.max}
-                    step={p.step}
-                    onChange={(value) => setParams((prev) => ({ ...prev, [p.key]: value }))}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
         </aside>
 
         <main className="flex flex-col gap-6">
@@ -317,6 +295,28 @@ export default function CvPlayground() {
               </div>
             </div>
           </div>
+
+          <section className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+            <h2 className="mb-1 text-sm font-semibold text-neutral-900">3. Parâmetros</h2>
+            <p className="mb-4 text-xs text-neutral-400">{activeFilter.description}</p>
+            {activeFilter.params.length === 0 ? (
+              <p className="text-sm text-neutral-400">Este filtro não possui parâmetros ajustáveis.</p>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {activeFilter.params.map((p) => (
+                  <Slider
+                    key={p.key}
+                    label={p.label}
+                    value={params[p.key] ?? p.default}
+                    min={p.min}
+                    max={p.max}
+                    step={p.step}
+                    onChange={(value) => setParams((prev) => ({ ...prev, [p.key]: value }))}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
 
           <Histogram
             originalRef={originalCanvasRef}

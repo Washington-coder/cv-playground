@@ -70,6 +70,37 @@ export const FILTERS: FilterDef[] = [
     params: [{ key: "ksize", label: "Tamanho do kernel", min: 1, max: 31, step: 2, default: 5 }],
   },
   {
+    id: "brighten",
+    label: "Clarear",
+    category: "Histograma / Contraste",
+    description: "Aumenta o brilho da imagem somando um valor fixo às intensidades dos pixels.",
+    params: [
+      { key: "amount", label: "Intensidade do clareamento", min: 0, max: 100, step: 1, default: 50 },
+    ],
+  },
+  {
+    id: "contrast_expand",
+    label: "Expansão de Contraste Linear",
+    category: "Histograma / Contraste",
+    description:
+      "Estica linearmente a faixa de intensidades [entrada mín, entrada máx] para o intervalo total [0, 255], aumentando o contraste.",
+    params: [
+      { key: "inLow", label: "Entrada mínima", min: 0, max: 254, step: 1, default: 50 },
+      { key: "inHigh", label: "Entrada máxima", min: 1, max: 255, step: 1, default: 200 },
+    ],
+  },
+  {
+    id: "contrast_compress",
+    label: "Compressão de Contraste Linear",
+    category: "Histograma / Contraste",
+    description:
+      "Comprime linearmente a faixa total [0, 255] no intervalo [saída mín, saída máx], reduzindo o contraste.",
+    params: [
+      { key: "outLow", label: "Saída mínima", min: 0, max: 254, step: 1, default: 50 },
+      { key: "outHigh", label: "Saída máxima", min: 1, max: 255, step: 1, default: 200 },
+    ],
+  },
+  {
     id: "equalize",
     label: "Equalização de Histograma",
     category: "Histograma / Contraste",
@@ -182,6 +213,38 @@ export function applyFilter(
         const ksize = oddAtLeast1(params.ksize);
         const dst = track(new cv.Mat());
         cv.blur(src, dst, new cv.Size(ksize, ksize));
+        result = dst;
+        break;
+      }
+      case "brighten": {
+        const rgb = track(new cv.Mat());
+        cv.cvtColor(src, rgb, cv.COLOR_RGBA2RGB);
+        const dst = track(new cv.Mat());
+        rgb.convertTo(dst, -1, 1, params.amount);
+        result = dst;
+        break;
+      }
+      case "contrast_expand": {
+        const inLow = Math.min(params.inLow, params.inHigh - 1);
+        const inHigh = Math.max(params.inHigh, inLow + 1);
+        const alpha = 255 / (inHigh - inLow);
+        const beta = -inLow * alpha;
+        const rgb = track(new cv.Mat());
+        cv.cvtColor(src, rgb, cv.COLOR_RGBA2RGB);
+        const dst = track(new cv.Mat());
+        rgb.convertTo(dst, -1, alpha, beta);
+        result = dst;
+        break;
+      }
+      case "contrast_compress": {
+        const outLow = Math.min(params.outLow, params.outHigh - 1);
+        const outHigh = Math.max(params.outHigh, outLow + 1);
+        const alpha = (outHigh - outLow) / 255;
+        const beta = outLow;
+        const rgb = track(new cv.Mat());
+        cv.cvtColor(src, rgb, cv.COLOR_RGBA2RGB);
+        const dst = track(new cv.Mat());
+        rgb.convertTo(dst, -1, alpha, beta);
         result = dst;
         break;
       }
